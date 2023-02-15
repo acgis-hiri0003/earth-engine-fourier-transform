@@ -1,14 +1,28 @@
 from __future__ import annotations
 
-import math
-from abc import ABC, abstractstaticmethod
-from dataclasses import dataclass, field, InitVar
-from typing import Union, Callable, List
+from abc import ABC
+from dataclasses import dataclass, field
 
 import ee
 
-@dataclass(frozen=True)
+import funcs
+
+
+class InputCollection:
+    
+    def __new__(cls, data: _BaseData) -> ee.ImageCollection:
+       
+        instance = ee.ImageCollection(data.ASSET_ID).filterBounds(data.ROI)\
+            .filterDate(f'{data.START_Y}', f'{data.END_Y}')\
+            .map(data.cloud_mask)\
+            .map(funcs.add_ndvi(nir=data.NIR, red=data.RED))\
+            .map(funcs.add_constant)
+        return instance
+
+
+@dataclass(frozen=False)
 class _BaseData(ABC):
+    ROI: ee.Geometry
     ASSET_ID: str = field(default=None)
     NIR: str = field(default=None)
     RED: str = field(default=None)
@@ -19,7 +33,7 @@ class _BaseData(ABC):
         raise NotImplementedError
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=False)
 class LandSAT8SR(_BaseData):
     ASSET_ID: str = field(default="LANDSAT/LC08/C02/T1_L2")
     NIR: str = field(default=None)
@@ -28,11 +42,12 @@ class LandSAT8SR(_BaseData):
     END_Y: int = field(default=None)
 
 
-@dataclass
+@dataclass(frozen=False)
 class Sentinel2(_BaseData):
     NIR: str = field(default='B8')
     RED: str = field(default='B4')
 
+    @staticmethod
     def cloud_mask(element: ee.Image):
         qa = element.select('QA60')
         cloudBitMask = 1 << 10
@@ -41,16 +56,16 @@ class Sentinel2(_BaseData):
         return element.updateMask(mask)
  
 
-@dataclass(frozen=True)
-class Sentinel2TOA(_BaseData):
+@dataclass(frozen=False)
+class Sentinel2TOA(Sentinel2):
     ASSET_ID: str =field(default="COPERNICUS/S2_HARMONIZED")
     START_Y: int = field(default=2015)
     END_Y: int = field(default=2023)
 
 
 
-@dataclass(frozen=True)
-class Sentinel2SR(_BaseData):
+@dataclass(frozen=False)
+class Sentinel2SR(Sentinel2):
     ASSET_ID: str =field(default="COPERNICUS/S2_SR_HARMONIZED")
     START_Y: int = field(default=2017)
     END_Y: int = field(default=2023)
