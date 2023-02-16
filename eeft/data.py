@@ -5,20 +5,6 @@ from dataclasses import dataclass, field
 
 import ee
 
-import funcs
-
-
-class InputCollection:
-    
-    def __new__(cls, data: _BaseData) -> ee.ImageCollection:
-       
-        instance = ee.ImageCollection(data.ASSET_ID).filterBounds(data.ROI)\
-            .filterDate(f'{data.START_Y}', f'{data.END_Y}')\
-            .map(data.cloud_mask)\
-            .map(funcs.add_ndvi(nir=data.NIR, red=data.RED))\
-            .map(funcs.add_constant)
-        return instance
-
 
 @dataclass(frozen=False)
 class _BaseData(ABC):
