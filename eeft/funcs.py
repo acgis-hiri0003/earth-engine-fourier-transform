@@ -29,6 +29,6 @@ def add_time(omega: float = 1.5) -> Callable:
         def add_time_inner(image: ee.Image):
             date = image.date()
             years = date.difference(ee.Date('1970-01-01'), 'year')
-            time_radians = ee.Image(years.multiply((2 * omega) * math.pi))
+            time_radians = ee.Image(years.multiply(2 * omega * math.pi))
             return image.addBands(time_radians.rename('t').float())
         return add_time_inner

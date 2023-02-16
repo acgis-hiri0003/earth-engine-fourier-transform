@@ -11,13 +11,13 @@ import funcs
 
 @dataclass
 class HarmonicCFG:
-    dependend: str = field(default='NDVI')
+    dependent: str = field(default='NDVI')
     independents: list = field(default_factory= lambda: ['constant', 't'])
     harmonics: int = 6
     omega: float = 1.5
     
     def __post_init__(self):
-        self.harmonic_freq = list(range(1, self.harmonics + 1))
+        self.harmonic_freq = list(range((1 * self.k), self.harmonics + 1))
         self.cos_names = [f'cos_{ _ }' for _ in self.harmonic_freq]
         self.sin_names = [f'sin_{ _ }' for _ in self.harmonic_freq]
         self.independents = [*self.independents, *self.cos_names, *self.sin_names]
@@ -30,7 +30,7 @@ class HarmonicsCollection:
     
     def __post_init__(self, input_collection):
         self.collection = input_collection\
-            .map(funcs.add_time(omega=self.config.omega))\
+            .map(funcs.add_time(omega=self.config.omega, k=self.config.k))\
             .map(funcs.add_harmonics(
                 freq=self.config.harmonic_freq,
                 cos_names=self.config.cos_names,
@@ -43,7 +43,7 @@ class HarmonicRegression:
         self.config = col.config
         self.harmonics_image = col.collection
         self.harmonic_trend = self.harmonics_image.select([*self.config.independents, 
-                                                           self.config.dependend]).\
+                                                           self.config.dependent]).\
             reduce(ee.Reducer.linearRegression(**{
                 'numX': len(self.config.independents),
                 'numY': 1
@@ -82,30 +82,21 @@ class HarmonicRegression:
 
     @property
     def mean_dependent(self) -> ee.Image:
-        return self.harmonics_image.select(self.config.dependend).mean()\
-            .rename(f'{self.config.dependend}_mean')
+        return self.harmonics_image.select(self.config.dependent).mean()\
+            .rename(f'{self.config.dependent}_mean')
     
     def fit_harmonics(self, collection: bool = True) -> Union[ee.ImageCollection, List[ee.Image]]:
         #TODO need to make it so that we can take a list of images and not a collection
 
         def fit_inner(element: ee.Image):
-            return element.addBands(element.select(self.config.dependent).\
+            return element.addBands(element.select(self.config.independents).\
                 multiply(self.harmonic_coeff).\
                 reduce('sum').\
                 rename('fitted')
             )
-            
-        def fit2img_list() -> ee.Image:
-            imgcol2client_list: list[Dict[str, Any]] = self.harmonics_image\
-                .toList(self.harmonics_image.size()).getInfo()
-            
-            return [fit_inner(ee.Image(_)) for _ in imgcol2client_list]
 
-        if collection:
-            return self.harmonics_image.map(fit_inner)
-        
-        else:
-            return fit2img_list()
+        return self.harmonics_image.map(fit_inner)
+
     
     def stack(self) -> ee.Image:
         return ee.Image.cat(self.harmonic_coeff, self.ampltiude, self.phase, self.mean_dependent)
