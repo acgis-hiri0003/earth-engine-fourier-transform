@@ -18,6 +18,6 @@ class TimeSeries:
                 freq=hcfg.harmonic_freq,
                 cos_names=hcfg.cos_names,
                 sin_names=hcfg.sin_names
-            )).select([hcfg.dependent, *hcfg.independents, *hcfg.cos_names, *hcfg.sin_names])
+            ))
         return instance
     
