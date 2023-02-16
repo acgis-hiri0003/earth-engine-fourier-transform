@@ -6,43 +6,29 @@ from typing import List, Union, Any, Dict
 
 import ee
 
-import inputs
-import funcs
+import ts
+
 
 @dataclass
 class HarmonicCFG:
     dependent: str = field(default='NDVI')
     independents: list = field(default_factory= lambda: ['constant', 't'])
-    harmonics: int = 6
+    harmonics: int = 2
     omega: float = 1.5
     
     def __post_init__(self):
-        self.harmonic_freq = list(range((1 * self.k), self.harmonics + 1))
+        self.harmonic_freq = list(range(1, self.harmonics + 1))
         self.cos_names = [f'cos_{ _ }' for _ in self.harmonic_freq]
         self.sin_names = [f'sin_{ _ }' for _ in self.harmonic_freq]
         self.independents = [*self.independents, *self.cos_names, *self.sin_names]
 
 
-@dataclass
-class HarmonicsCollection:
-    config: HarmonicCFG
-    input_collection: InitVar[inputs.InputCollection]
-    
-    def __post_init__(self, input_collection):
-        self.collection = input_collection\
-            .map(funcs.add_time(omega=self.config.omega, k=self.config.k))\
-            .map(funcs.add_harmonics(
-                freq=self.config.harmonic_freq,
-                cos_names=self.config.cos_names,
-                sin_names=self.config.sin_names
-            ))
 
-
-class HarmonicRegression:
-    def __init__(self, col: HarmonicsCollection) -> None:
+class HarmonicModel:
+    def __init__(self, col: ts.TimeSeries, cfg: HarmonicCFG) -> None:
         self.config = col.config
-        self.harmonics_image = col.collection
-        self.harmonic_trend = self.harmonics_image.select([*self.config.independents, 
+        self.time_series = col
+        self.harmonic_trend = self.time_series.select([*self.config.independents, 
                                                            self.config.dependent]).\
             reduce(ee.Reducer.linearRegression(**{
                 'numX': len(self.config.independents),
@@ -67,7 +53,7 @@ class HarmonicRegression:
         return stack.select(old_names, new_names)
 
     @property
-    def ampltiude(self) -> ee.Image:
+    def amplitude(self) -> ee.Image:
         
         def mk_amp_inner(numerator, denominator) -> ee.Image:
             return self.harmonic_coeff.select(numerator)\
@@ -82,7 +68,7 @@ class HarmonicRegression:
 
     @property
     def mean_dependent(self) -> ee.Image:
-        return self.harmonics_image.select(self.config.dependent).mean()\
+        return self.time_series.select(self.config.dependent).mean()\
             .rename(f'{self.config.dependent}_mean')
     
     def fit_harmonics(self, collection: bool = True) -> Union[ee.ImageCollection, List[ee.Image]]:
@@ -95,10 +81,5 @@ class HarmonicRegression:
                 rename('fitted')
             )
 
-        return self.harmonics_image.map(fit_inner)
-
-    
-    def stack(self) -> ee.Image:
-        return ee.Image.cat(self.harmonic_coeff, self.ampltiude, self.phase, self.mean_dependent)
-        
+        return self.time_series.map(fit_inner)
     
