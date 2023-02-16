@@ -45,11 +45,11 @@ def create_time_band(element: ee.Image) -> ee.Image:
     return element.set('date', date).rename(date)
 
 
-def add_phase_image(mode: int) -> Callable:
+def add_phase_image(mode: int, coeff: ee.Image) -> Callable:
     sin, cos, name = f'sin_{mode}', f'cos_{mode}', f'phase_{mode}'
     def wrapper(element: ee.Image):
         return element.addBands(element.select(sin).atan2(element.select(cos))\
-            .unitScale(-math.pi, math.pi).rename(name))
+            .rename(name))
     return wrapper
 
 
@@ -58,5 +58,3 @@ def add_amplitude_image(mode: int) -> Callable:
     def wrapper(element: ee.Image):
         return element.select(sin).hypot(element.select(cos))
     return wrapper
-
-def get_mode

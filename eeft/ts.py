@@ -6,7 +6,7 @@ import harm
 
 class TimeSeries:
     
-    def __new__(cls, data: data._BaseData, hcfg: harm.HarmonicCFG) -> ee.ImageCollection:
+    def __new__(cls, data: data._BaseData, hcfg) -> ee.ImageCollection:
         
         instance = ee.ImageCollection(data.ASSET_ID).filterBounds(data.ROI)\
             .filterDate(f'{data.START_Y}', f'{data.END_Y}')\
