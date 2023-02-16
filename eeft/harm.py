@@ -26,7 +26,7 @@ class HarmonicCFG:
 
 class HarmonicModel:
     def __init__(self, col: ts.TimeSeries, cfg: HarmonicCFG) -> None:
-        self.config = col.config
+        self.config = cfg
         self.time_series = col
         self.harmonic_trend = self.time_series.select([*self.config.independents, 
                                                            self.config.dependent]).\
